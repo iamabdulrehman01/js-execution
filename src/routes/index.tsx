@@ -6,7 +6,7 @@ import { analyzeHoisting, type MemoryStep } from "@/lib/hoisting";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "JS Step Visualizer" },
+      { title: "Code Execution Visualizer" },
       {
         name: "description",
         content:
@@ -204,7 +204,7 @@ function Index() {
         <header className="glass-panel rounded-[28px] border border-white/10 px-6 py-5">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-cyan-200">
             <span className="h-2 w-2 rounded-full bg-cyan-300" />
-            Interactive event loop explorer
+            Code Execution Visualizer
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             JavaScript Step Visualizer — Event Loop

@@ -45,6 +45,40 @@ type WebApiItem = { id: number; label: string };
 type QueueItem = { id: number; label: string };
 type Frame = { line: number; name: string };
 
+function renderHighlightedCode(code: string) {
+  const tokens = code.split(/(\s+|[{}();,.=:+\-*/%&|!?<>\[\]'])/g);
+
+  return tokens.map((token, index) => {
+    const trimmed = token.trim();
+    const isKeyword =
+      /\b(var|let|const|function|return|if|else|for|while|setTimeout|Promise|console|new|class|try|catch|throw|break|continue)\b/.test(
+        token,
+      );
+    const isString = /^(['"`]).*\1$/.test(trimmed) || /^(['"`])/.test(trimmed);
+    const isNumber = /^-?\d+(\.\d+)?$/.test(trimmed);
+    const isComment = /^\/\//.test(trimmed) || /^\/\*|\*\//.test(trimmed);
+    const isFunctionName = /\bfunction\b/.test(token) && !/\bfunction\b/.test(trimmed);
+
+    const colorClass = isComment
+      ? "text-slate-500"
+      : isString
+        ? "text-emerald-300"
+        : isNumber
+          ? "text-amber-300"
+          : isKeyword
+            ? "text-fuchsia-400 font-semibold"
+            : isFunctionName
+              ? "text-cyan-300"
+              : "text-slate-100";
+
+    return (
+      <span key={`${token}-${index}`} className={colorClass}>
+        {token}
+      </span>
+    );
+  });
+}
+
 function Index() {
   const [code, setCode] = useState(SAMPLE);
   const [view, setView] = useState<View>("lines");
@@ -165,149 +199,165 @@ function Index() {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border px-6 py-4">
-        <h1 className="text-xl font-semibold tracking-tight">
-          JavaScript Step Visualizer — Event Loop
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Write code on the left. Hit Run to watch line-by-line execution, or switch to{" "}
-          <strong>Call stack</strong> to see the Heap, Call Stack, Web APIs, Microtask
-          Queue (priority), and Callback Queue in motion.
-        </p>
-      </header>
+    <main className="relative min-h-screen overflow-hidden bg-transparent px-3 py-4 text-foreground sm:px-4 lg:px-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <header className="glass-panel rounded-[28px] border border-white/10 px-6 py-5">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-cyan-200">
+            <span className="h-2 w-2 rounded-full bg-cyan-300" />
+            Interactive event loop explorer
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            JavaScript Step Visualizer — Event Loop
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
+            Write code on the left. Hit Run to watch line-by-line execution, or switch to{" "}
+            <strong className="text-white">Call stack</strong> to see the Heap, Call Stack, Web
+            APIs, Microtask Queue (priority), and Callback Queue in motion.
+          </p>
+        </header>
 
-      <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
-        {/* LEFT: editor */}
-        <section className="flex flex-col rounded-lg border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2">
-            <span className="text-sm font-medium">Editor</span>
-            <div className="flex gap-2">
-              <button
-                onClick={handleRun}
-                disabled={running}
-                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-              >
-                {running ? "Running…" : "▶ Run"}
-              </button>
-              {running && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* LEFT: editor */}
+          <section className="glass-panel flex flex-col overflow-hidden rounded-[24px] border border-white/10">
+            <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
+              <span className="text-sm font-semibold text-white">Editor</span>
+              <div className="flex gap-2">
                 <button
-                  onClick={handleStop}
-                  className="rounded-md border border-input px-3 py-1.5 text-sm font-medium hover:bg-accent"
+                  onClick={handleRun}
+                  disabled={running}
+                  className="rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/20 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Stop
+                  {running ? "Running…" : "▶ Run"}
                 </button>
-              )}
-            </div>
-          </div>
-          <textarea
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            spellCheck={false}
-            className="min-h-[560px] flex-1 resize-none bg-transparent p-4 font-mono text-sm outline-none"
-          />
-        </section>
-
-        {/* RIGHT: visualization */}
-        <section className="flex flex-col rounded-lg border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2">
-            <span className="text-sm font-medium">Visualization</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setView("lines")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  view === "lines"
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-input hover:bg-accent"
-                }`}
-              >
-                Code line by line
-              </button>
-              <button
-                onClick={() => setView("stack")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  view === "stack"
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-input hover:bg-accent"
-                }`}
-              >
-                Call stack
-              </button>
-              <button
-                onClick={() => setView("memory")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  view === "memory"
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-input hover:bg-accent"
-                }`}
-              >
-                Memory & Hoisting
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-1 flex-col">
-            {view === "lines" ? (
-              <LineView lines={lines} currentLine={currentLine} />
-            ) : view === "stack" ? (
-              <EventLoopView
-                stack={stack}
-                webApis={webApis}
-                microQ={microQ}
-                macroQ={macroQ}
-                heap={heap}
-                phase={phase}
-                flash={flash}
-              />
-            ) : (
-              <MemoryView code={code} />
-            )}
-
-            <div className="border-t border-border bg-muted/30 p-3">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Console
-              </div>
-              <div className="max-h-32 overflow-auto font-mono text-xs">
-                {logs.length === 0 ? (
-                  <span className="text-muted-foreground">No output yet.</span>
-                ) : (
-                  logs.map((l, i) => (
-                    <div key={i} className="whitespace-pre-wrap">
-                      {l}
-                    </div>
-                  ))
+                {running && (
+                  <button
+                    onClick={handleStop}
+                    className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm font-medium text-slate-100 transition hover:bg-white/20"
+                  >
+                    Stop
+                  </button>
                 )}
               </div>
             </div>
-          </div>
-        </section>
+            <div className="min-h-[560px] flex-1 overflow-auto bg-[#0f172a] p-0">
+              <div className="flex min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(168,85,247,0.16),_transparent_35%),linear-gradient(135deg,_#0f172a_0%,_#111827_100%)]">
+                <div className="w-12 select-none border-r border-white/10 bg-slate-950/70 px-2 py-4 text-right font-mono text-xs leading-7 text-slate-500">
+                  {lines.map((_, index) => (
+                    <div key={index}>{index + 1}</div>
+                  ))}
+                </div>
+                <div className="relative flex-1">
+                  <pre className="pointer-events-none absolute inset-0 whitespace-pre-wrap p-4 font-mono text-sm leading-7">
+                    <code>{renderHighlightedCode(code)}</code>
+                  </pre>
+                  <textarea
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    spellCheck={false}
+                    className="relative z-10 h-full min-h-[560px] w-full resize-none bg-transparent p-4 font-mono text-sm leading-7 text-transparent caret-slate-50 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* RIGHT: visualization */}
+          <section className="glass-panel flex flex-col overflow-hidden rounded-[24px] border border-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
+              <span className="text-sm font-semibold text-white">Visualization</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setView("lines")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    view === "lines"
+                      ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-lg"
+                      : "border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20"
+                  }`}
+                >
+                  Code line by line
+                </button>
+                <button
+                  onClick={() => setView("stack")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    view === "stack"
+                      ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-lg"
+                      : "border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20"
+                  }`}
+                >
+                  Call stack
+                </button>
+                <button
+                  onClick={() => setView("memory")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    view === "memory"
+                      ? "bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-lg"
+                      : "border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20"
+                  }`}
+                >
+                  Memory & Hoisting
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-1 flex-col">
+              {view === "lines" ? (
+                <LineView lines={lines} currentLine={currentLine} />
+              ) : view === "stack" ? (
+                <EventLoopView
+                  stack={stack}
+                  webApis={webApis}
+                  microQ={microQ}
+                  macroQ={macroQ}
+                  heap={heap}
+                  phase={phase}
+                  flash={flash}
+                />
+              ) : (
+                <MemoryView code={code} />
+              )}
+
+              <div className="border-t border-white/10 bg-slate-950/50 p-3">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.25em] text-cyan-200">
+                  Console
+                </div>
+                <div className="max-h-32 overflow-auto font-mono text-xs text-slate-200">
+                  {logs.length === 0 ? (
+                    <span className="text-slate-400">No output yet.</span>
+                  ) : (
+                    logs.map((l, i) => (
+                      <div key={i} className="whitespace-pre-wrap">
+                        {l}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   );
 }
 
-function LineView({
-  lines,
-  currentLine,
-}: {
-  lines: string[];
-  currentLine: number | null;
-}) {
+function LineView({ lines, currentLine }: { lines: string[]; currentLine: number | null }) {
   return (
-    <div className="overflow-auto p-2 font-mono text-sm">
+    <div className="overflow-auto bg-slate-950/70 p-2 font-mono text-sm">
       {lines.map((l, i) => {
         const ln = i + 1;
         const active = ln === currentLine;
         return (
           <div
             key={i}
-            className={`flex gap-3 rounded px-2 py-0.5 transition-colors ${
-              active ? "bg-primary/15 ring-1 ring-primary" : ""
+            className={`flex gap-3 rounded-lg px-2 py-1 transition-all ${
+              active
+                ? "bg-gradient-to-r from-fuchsia-500/20 to-cyan-500/20 ring-1 ring-cyan-400/50"
+                : "hover:bg-white/5"
             }`}
           >
-            <span className="w-8 select-none text-right text-muted-foreground">{ln}</span>
-            <span className={`whitespace-pre ${active ? "font-semibold" : ""}`}>
-              {l || " "}
+            <span className="w-8 select-none text-right text-slate-500">{ln}</span>
+            <span className={`whitespace-pre ${active ? "font-semibold text-slate-50" : ""}`}>
+              {l ? <code>{renderHighlightedCode(l)}</code> : " "}
             </span>
           </div>
         );
@@ -331,8 +381,8 @@ function Panel({
 }) {
   return (
     <div
-      className={`rounded-lg border-2 bg-card p-3 transition ${
-        flashed ? "ring-4 ring-primary/40" : ""
+      className={`rounded-2xl border-2 bg-slate-950/60 p-3 shadow-[0_12px_35px_rgba(2,6,23,0.3)] transition ${
+        flashed ? "ring-4 ring-cyan-400/40" : ""
       }`}
       style={{ borderColor: accent }}
     >
@@ -367,17 +417,15 @@ function EventLoopView({
   return (
     <div className="flex-1 overflow-auto p-4">
       {/* JS engine row */}
-      <div className="rounded-xl border-2 border-dashed border-yellow-400 p-3">
-        <div className="mb-3 inline-block rounded bg-yellow-400 px-2 py-1 text-xs font-black text-black">
+      <div className="rounded-[22px] border border-cyan-400/30 bg-gradient-to-br from-fuchsia-500/10 via-slate-900/70 to-cyan-500/10 p-3">
+        <div className="mb-3 inline-block rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-500 px-3 py-1 text-[11px] font-black uppercase tracking-[0.3em] text-white">
           JS ENGINE
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Panel title="Heap" accent="#f59e0b" hint="objects / closures">
             <div className="flex min-h-[120px] flex-wrap content-start gap-2">
               {heap.length === 0 && (
-                <span className="text-xs text-muted-foreground">
-                  (allocations appear here)
-                </span>
+                <span className="text-xs text-muted-foreground">(allocations appear here)</span>
               )}
               {heap.map((h) => (
                 <span
@@ -396,9 +444,7 @@ function EventLoopView({
             flashed={flash === "stack"}
           >
             <div className="flex min-h-[120px] flex-col-reverse gap-1">
-              {stack.length === 0 && (
-                <span className="text-xs text-muted-foreground">(empty)</span>
-              )}
+              {stack.length === 0 && <span className="text-xs text-muted-foreground">(empty)</span>}
               {stack.map((f, i) => {
                 const isTop = i === stack.length - 1;
                 return (
@@ -440,9 +486,7 @@ function EventLoopView({
         >
           <div className="flex min-h-[60px] flex-wrap gap-2">
             {webApis.length === 0 && (
-              <span className="text-xs text-muted-foreground">
-                (no async work in flight)
-              </span>
+              <span className="text-xs text-muted-foreground">(no async work in flight)</span>
             )}
             {webApis.map((w) => (
               <span
@@ -465,9 +509,7 @@ function EventLoopView({
           flashed={flash === "micro"}
         >
           <div className="flex min-h-[44px] flex-wrap gap-2">
-            {microQ.length === 0 && (
-              <span className="text-xs text-muted-foreground">(empty)</span>
-            )}
+            {microQ.length === 0 && <span className="text-xs text-muted-foreground">(empty)</span>}
             {microQ.map((m, i) => (
               <span
                 key={m.id}
@@ -486,9 +528,7 @@ function EventLoopView({
           flashed={flash === "macro"}
         >
           <div className="flex min-h-[44px] flex-wrap gap-2">
-            {macroQ.length === 0 && (
-              <span className="text-xs text-muted-foreground">(empty)</span>
-            )}
+            {macroQ.length === 0 && <span className="text-xs text-muted-foreground">(empty)</span>}
             {macroQ.map((m, i) => (
               <span
                 key={m.id}
@@ -507,12 +547,8 @@ function EventLoopView({
           ↻
         </div>
         <div>
-          <div className="text-xs font-bold uppercase tracking-wide text-primary">
-            Event Loop
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {phase || "idle — waiting"}
-          </div>
+          <div className="text-xs font-bold uppercase tracking-wide text-primary">Event Loop</div>
+          <div className="text-xs text-muted-foreground">{phase || "idle — waiting"}</div>
         </div>
         <div className="ml-auto text-[10px] text-muted-foreground">
           stack empty → drain ALL microtasks → run 1 macrotask → repeat
@@ -520,10 +556,9 @@ function EventLoopView({
       </div>
 
       <div className="mt-3 rounded-md border border-dashed border-border p-2 text-[11px] text-muted-foreground">
-        <strong>Priority order:</strong> 1) sync code on Call Stack → 2) entire Microtask
-        Queue (promises) → 3) one Callback Queue task (setTimeout) → back to microtasks.
-        That's why a <code>Promise.then</code> always runs before a <code>setTimeout(0)</code>{" "}
-        scheduled earlier.
+        <strong>Priority order:</strong> 1) sync code on Call Stack → 2) entire Microtask Queue
+        (promises) → 3) one Callback Queue task (setTimeout) → back to microtasks. That's why a{" "}
+        <code>Promise.then</code> always runs before a <code>setTimeout(0)</code> scheduled earlier.
       </div>
     </div>
   );
@@ -591,12 +626,8 @@ function MemoryView({ code }: { code: string }) {
         <>
           <div className={`mb-3 rounded-lg border-2 p-3 ${phaseColor}`}>
             <div className="text-[10px] font-black uppercase tracking-widest">
-              {step.phase === "creation"
-                ? "Phase 1 — Creation (Hoisting)"
-                : "Phase 2 — Execution"}
-              {step.line > 0 && (
-                <span className="ml-2 opacity-70">· line {step.line}</span>
-              )}
+              {step.phase === "creation" ? "Phase 1 — Creation (Hoisting)" : "Phase 2 — Execution"}
+              {step.line > 0 && <span className="ml-2 opacity-70">· line {step.line}</span>}
             </div>
             <div className="mt-1 text-base font-semibold">{step.title}</div>
             <div className="mt-1 text-xs opacity-90">{step.explanation}</div>
@@ -666,8 +697,8 @@ function MemoryView({ code }: { code: string }) {
             <strong>How hoisting works:</strong> before any code runs, JS scans the scope and
             reserves memory. <code>function</code> declarations are stored complete.{" "}
             <code>var</code> gets the slot but value <code>undefined</code>. <code>let</code> /{" "}
-            <code>const</code> get a slot but stay in the <strong>Temporal Dead Zone</strong>{" "}
-            until their line — touching them earlier throws ReferenceError.
+            <code>const</code> get a slot but stay in the <strong>Temporal Dead Zone</strong> until
+            their line — touching them earlier throws ReferenceError.
           </div>
         </>
       )}

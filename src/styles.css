@@ -175,3 +175,7 @@
   backdrop-filter: blur(20px);
   box-shadow: 0 16px 45px rgba(2, 6, 23, 0.28);
 }
+
+button {
+  cursor: pointer;
+}
